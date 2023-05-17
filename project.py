@@ -28,37 +28,47 @@ def home():
 
     chart_svg = create_chart(x, y)
 
+
     return render_template('index.html', chart_svg=chart_svg, now=datetime.now(),)
-with open("factbook.csv", 'r') as file:
-     reader = csv.reader(file, delimiter=';')
-     next(reader)
-     next(reader)
-     areas = []
-     countries = []
-     GPD = []
-     for row in reader:
-         areas.append(row[1])
-         countries.append(row[0])
-         GPD.append(float(row[11].strip() if row[11].strip() != '' else 0))
+def read_data_from_csv(file_path):
+        areas = []
+        countries = []
+        GPD = []
+
+        with open(file_path, 'r') as file:
+            reader = csv.reader(file, delimiter=';')
+            next(reader)
+            next(reader)
+
+            for row in reader:
+                areas.append(row[1])
+                countries.append(row[0])
+                GPD.append(float(row[11].strip() if row[11].strip() != '' else 0))
+
+        return areas, countries, GPD
+
+areas, countries, GPD = read_data_from_csv('factbook.csv')
 
 filtredIndexes = list(filter(lambda i: int(areas[i]) > 1000, range(len(areas))))
 
-filtredItems = [countries[i] for i in filtredIndexes]
+filtredCountries = [countries[i] for i in filtredIndexes]
+filtredGPDs = [GPD[i] for i in filtredIndexes]
 
 print(areas)
 print(countries)
 print(GPD)
-print(filtredIndexes)
-print(filtredItems)
+print(filtredCountries)
+print(filtredGPDs)
 
 
-def create_chart(countries, GPD):
+def create_chart(filtredCountries, filtredGPDs):
     line_chart = pygal.Line()
     line_chart.title = 'GDP of countries with an area of less than 1,000'
-    line_chart.countries_labels = countries
-    line_chart.add("GDP's", GPD)
+    line_chart.filtredCountries_labels = filtredCountries
+    line_chart.add("GDP's", filtredGPDs)
 
     return line_chart.render().decode().strip()
 
-
+if __name__ == '__main__':
+    app.run()
 
