@@ -1,10 +1,24 @@
-import csv
-import pygal
 from flask import Flask, render_template, request
+from datetime import datetime
+import pygal
+import csv
+import myModule
+from pygal.style import DarkStyle
+
+
 app = Flask(__name__)
 
 @app.route('/', methods=['GET', 'POST'])
 def home():
+    countLoaded = 0
+    countFiltered = 0
+    x = []
+    y = []
+    z = []
+    x = [1, 2, 3, 4, 5]
+    y = [2, 4, 6, 8, 10]
+    z = [1, 2, 3, 4, 6]
+    warnMess = 'Данные успешно загружены'
     if request.method == 'POST':
         if 'file' not in request.files:
             return 'No file uploaded'
@@ -20,55 +34,107 @@ def home():
         file_path = 'tmp.csv'
         file.save(file_path)
 
-        x, y, z = read_data_from_csv(file_path)
-    else:
-        # Default synthetic data
-        x = [1, 2, 3, 4, 5]
-        y = [2, 4, 6, 8, 10]
+        def checkDataCsv (file_path):
+            with open(file_path, 'r') as file:
+                reader = csv.reader(file, delimiter=';')
+                if len(next(reader)) >= 10:
+                    return True
+                else: return False
+        if checkDataCsv(file_path):
+            
+            x, y, z = myModule.read_data_from_csv(file_path)
 
-    chart_svg = create_chart(x, y)
+            filtered_idx = list(filter(lambda i: z[i]>1000, range(len(z))))
 
+            countLoaded = len(x)
 
-    return render_template('index.html', chart_svg=chart_svg, now=datetime.now(),)
-def read_data_from_csv(file_path):
-        areas = []
-        countries = []
-        GPD = []
+            y = [y[i] for i in filtered_idx]
+            x = [x[i] for i in filtered_idx]
+            z = [z[i] for i in filtered_idx]
 
-        with open(file_path, 'r') as file:
-            reader = csv.reader(file, delimiter=';')
-            next(reader)
-            next(reader)
+            countFiltered = len(x)
 
-            for row in reader:
-                areas.append(row[1])
-                countries.append(row[0])
-                GPD.append(float(row[11].strip() if row[11].strip() != '' else 0))
+        else:
+            warnMess = 'Ваши данные некорректны'
+    
 
-        return areas, countries, GPD
+    chart_svg = create_chart(y, z)
+    
 
-areas, countries, GPD = read_data_from_csv('factbook.csv')
-
-filtredIndexes = list(filter(lambda i: int(areas[i]) > 1000, range(len(areas))))
-
-filtredCountries = [countries[i] for i in filtredIndexes]
-filtredGPDs = [GPD[i] for i in filtredIndexes]
-
-print(areas)
-print(countries)
-print(GPD)
-print(filtredCountries)
-print(filtredGPDs)
+    return render_template('index.html', chart_svg=chart_svg, now=datetime.now(), countFiltered = countFiltered, countLoaded = countLoaded, warnMess = warnMess)
 
 
-def create_chart(filtredCountries, filtredGPDs):
-    line_chart = pygal.Line()
-    line_chart.title = 'GDP of countries with an area of less than 1,000'
-    line_chart.filtredCountries_labels = filtredCountries
-    line_chart.add("GDP's", filtredGPDs)
 
-    return line_chart.render().decode().strip()
+
+def create_chart(y, z):
+    
+    bar_chart = pygal.Bar(x_label_rotation=60, style=DarkStyle, width=2000, height=1300)
+    bar_chart.title = 'Dependence of countries on their gdp'
+    bar_chart.x_labels = y
+    bar_chart.add('GDPs', z)
+    
+    
+
+    return bar_chart.render().decode().strip()
 
 if __name__ == '__main__':
     app.run()
 
+# from flask import Flask, render_template, request
+# from datetime import datetime
+# import pygal
+# import csv
+
+
+# app = Flask(__name__)
+
+# @app.route('/', methods=['GET', 'POST'])
+# def home():
+#     if request.method == 'POST':
+#         if 'file' not in request.files:
+#             return 'No file uploaded'
+
+#         file = request.files['file']
+
+#         if file.filename == '':
+#             return 'No file selected'
+
+#         if not file.filename.endswith('.csv'):
+#             return 'Invalid file format. Please upload a CSV file.'
+
+#         file_path = 'tmp.csv'
+#         file.save(file_path)
+
+#         x, y = read_data_from_csv(file_path)
+#     else:
+#         # Default synthetic data
+#         x = [1, 2, 3, 4, 5]
+#         y = [2, 4, 6, 8, 10]
+
+#     chart_svg = create_chart(x, y)
+
+#     return render_template('index.html', chart_svg=chart_svg, now=datetime.now(),)
+
+# def read_data_from_csv(file_path):
+#     x = []
+#     y = []
+
+#     with open(file_path, 'r') as file:
+#         reader = csv.reader(file)
+#         next(reader)  # Skip the header row
+#         for row in reader:
+#             x.append(row[0])
+#             y.append(float(row[1]))
+
+#     return x, y
+
+# def create_chart(x, y):
+#     line_chart = pygal.Line()
+#     line_chart.title = 'Example Chart'
+#     line_chart.x_labels = x
+#     line_chart.add('Series', y)
+
+#     return line_chart.render().decode().strip()
+
+# if __name__ == '__main__':
+#     app.run()
